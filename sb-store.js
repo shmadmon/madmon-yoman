@@ -110,14 +110,22 @@ async function start(){
 document.addEventListener("DOMContentLoaded",()=>{
   const f=document.getElementById("lgForm");
   const btn=(on)=>{f.querySelectorAll("button").forEach(b=>b.disabled=on)};
+  let mode="in";
+  document.getElementById("lgNew").addEventListener("click",()=>{mode="new"});
+  document.getElementById("lgIn").addEventListener("click",()=>{mode="in"});
   f.addEventListener("submit",async e=>{
+    const isNew=(e.submitter&&e.submitter.id==="lgNew")||(!e.submitter&&mode==="new");
     e.preventDefault();btn(true);document.getElementById("lgMsg").textContent="מתחבר…";
     const email=document.getElementById("lgEmail").value.trim().toLowerCase();
     const password=document.getElementById("lgPass").value;
     let {data,error}=await sb.auth.signInWithPassword({email,password});
-    if(error&&e.submitter&&e.submitter.id==="lgNew"){
-      const r=await sb.auth.signUp({email,password});
-      if(r.error){btn(false);showLogin(heErr(r.error));return}
+    if(error&&isNew){
+      const r=await sb.rpc("register_member",{p_email:email,p_password:password});
+      const st=r.error?"error":r.data;
+      if(st==="not_member"){btn(false);showLogin("המייל "+email+" לא ברשימת המורשים. בקשו מבעל היומן להוסיף אותו.");return}
+      if(st==="exists"){btn(false);showLogin("כבר נרשמתם עם המייל הזה, אבל הסיסמה שגויה. נסו שוב, או בקשו מבעל היומן לאפס אותה.");return}
+      if(st==="short_password"){btn(false);showLogin("הסיסמה צריכה להיות לפחות 6 תווים.");return}
+      if(st!=="ok"){btn(false);showLogin(heErr(r.error||{message:String(st)}));return}
       ({data,error}=await sb.auth.signInWithPassword({email,password}));
     }
     btn(false);
